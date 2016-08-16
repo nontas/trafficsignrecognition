@@ -165,14 +165,24 @@ class CorrelationFilter(object):
         method_name = 'Minimum Output Sum of Squared Errors (MOSSE)'
         if self.type == 'mccf':
             method_name = 'Multi-Channel Correlation (MCCF)'
-        output_str = r"""
-Correlation Filter
-- {}
-- Shape: {}x{}
-- Response covariance: {}
-- Regularization parameter: {}
-- Boundary: {}
-- {} training samples""".format(method_name, self.filter_shape[0],
-                                self.filter_shape[1], self.response_covariance,
-                                self.l, self.boundary, self.n_training_images)
+        output_str = r"""Correlation Filter
+ - {}
+ - Shape: {}x{}
+ - Response covariance: {}
+ - Regularization parameter: {}
+ - Boundary: {}
+ - {} training samples""".format(method_name, self.filter_shape[0],
+                                 self.filter_shape[1], self.response_covariance,
+                                 self.l, self.boundary, self.n_training_images)
         return output_str
+
+    def view_spatial_filter(self, figure_id=None, new_figure=False,
+                            channels='all', interpolation='bilinear',
+                            cmap_name='afmhot', alpha=1., render_axes=False,
+                            axes_font_name='sans-serif', axes_font_size=10,
+                            axes_font_style='normal', axes_font_weight='normal',
+                            axes_x_limits=None, axes_y_limits=None,
+                            axes_x_ticks=None, axes_y_ticks=None,
+                            figure_size=(10, 8)):
+        pass
+

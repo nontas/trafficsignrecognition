@@ -1,9 +1,10 @@
 import numpy as np
+from numpy.fft import fft2, ifft2, ifftshift
 from functools import partial
 from scipy.sparse import spdiags, eye as speye
 from scipy.sparse.linalg import spsolve
 
-from menpo.visualize import print_progress
+from menpofit.visualize import print_progress
 from menpofit.math.fft_utils import pad, crop
 
 
@@ -62,7 +63,7 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     # extend desired response
     ext_y = pad(y, ext_shape)
     # fft of extended desired response
-    fft_ext_y = np.fft.fft2(ext_y)
+    fft_ext_y = fft2(ext_y)
 
     # auto and cross spectral energy matrices
     sXX = 0
@@ -73,7 +74,7 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
         # extend image
         ext_x = pad(x, ext_shape, boundary=boundary)
         # fft of extended image
-        fft_ext_x = np.fft.fft2(ext_x)
+        fft_ext_x = fft2(ext_x)
 
         # update auto and cross spectral energy matrices
         sXX += fft_ext_x.conj() * fft_ext_x
@@ -85,7 +86,7 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     fft_ext_f = fft_ext_f.reshape((k, ext_h, ext_w))
 
     # compute extended filter inverse fft
-    f = np.real(np.fft.ifftshift(np.fft.ifft2(fft_ext_f), axes=(-2, -1)))
+    f = np.real(ifftshift(ifft2(fft_ext_f), axes=(-2, -1)))
 
     if crop_filter:
         # crop extended filter to match desired response shape
