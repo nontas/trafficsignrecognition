@@ -10,6 +10,6 @@ setup(
     author='Epameinondas Antonakos',
     author_email='antonakosn@gmail.com',
     packages=find_packages(),
-    install_requires=['menpo>=0.7,<0.8',
-                      'scikit-learn>=0.17']
+    install_requires=['menpofit>=0.4,<0.5',
+                      'menpowidgets>=0.2,<0.3']
 )

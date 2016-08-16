@@ -12,6 +12,7 @@ from .correlationfilter import CorrelationFilter
 from .normalisation import (normalise_norm_array, image_normalisation,
                             create_cosine_mask)
 from .feature import fast_dsift_hsi
+from .result import DetectionResult, print_str
 
 
 def get_bounding_box(center, shape):
@@ -235,8 +236,11 @@ class Detector(object):
         # Get responses at each pyramid level
         selected_bboxes = []
         selected_scores = []
+
+        responses = None
         if return_responses:
             responses = []
+
         wrap = partial(print_progress, prefix='Detecting', verbose=verbose,
                        end_with_newline=False, show_count=False)
         for scale in wrap(list(scales)[::-1]):
@@ -275,17 +279,9 @@ class Detector(object):
         attach_bboxes_to_image(image, bboxes)
 
         if verbose:
-            msg = "No detections."
-            if len(bboxes) == 1:
-                msg = "1 detection."
-            elif len(bboxes) > 1:
-                msg = "{} detections.".format(len(bboxes))
-            print_dynamic(msg)
+            print_dynamic(print_str(bboxes, len(scales)))
 
-        if return_responses:
-            return bboxes, scores, responses
-        else:
-            return bboxes, scores
+        return DetectionResult(image, bboxes, scores, scales, responses)
 
     def view_spatial_filter(self, figure_id=None, new_figure=False,
                             channels='all', interpolation='bilinear',
