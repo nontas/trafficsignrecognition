@@ -3,7 +3,7 @@ import numpy as np
 from menpo.image import Image
 from menpo.feature import ndfeature, igo, fast_dsift, no_op
 
-from .normalisation import image_normalisation
+from ..normalisation import image_normalisation
 
 
 @ndfeature
