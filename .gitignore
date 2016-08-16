@@ -23,6 +23,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+.idea/*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -66,6 +67,9 @@ docs/_build/
 # PyBuilder
 target/
 
+# IntelliJ
+*.iml
+
 # IPython Notebook
 .ipynb_checkpoints
 
@@ -81,6 +85,9 @@ celerybeat-schedule
 # virtualenv
 venv/
 ENV/
+
+# OSX
+.DS_Store
 
 # Spyder project settings
 .spyderproject

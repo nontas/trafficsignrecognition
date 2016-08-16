@@ -1,2 +1,1 @@
-# trafficsignrecognition
-Traffic Sign Detection and Recognition
+#Traffic Sign Detection and Recognition
