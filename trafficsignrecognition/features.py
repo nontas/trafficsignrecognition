@@ -1,7 +1,9 @@
 import numpy as np
 
 from menpo.image import Image
-from menpo.feature import ndfeature, igo, fast_dsift
+from menpo.feature import ndfeature, igo, fast_dsift, no_op
+
+from .normalisation import image_normalisation
 
 
 @ndfeature
@@ -110,3 +112,53 @@ def fast_dsift_hsi(pixels):
         The 11-channels image that occurs by concatenating Dense SIFT and HSI.
     """
     return np.concatenate((fast_dsift(pixels), rgb2hsi(pixels)))
+
+
+def image_pyramid(image, scales, features=no_op, normalisation=no_op):
+    r"""
+    Create a feature-based pyramid for the provided image. Note that the features
+    are computed only on the initial resolution and then the pyramid is created
+    by rescaling the features image.
+
+    Parameters
+    ----------
+    image : `menpo.image.Image` or subclass
+        The input menpo image object.
+    scales : `tuple` of `float`
+        The scales to be used. They must be defined with respect to the image's
+        original resolution.
+    features : `callable`, optional
+        The features to be used. The must be densely sampled features. It must
+        accept and return a `menpo.image.Image`.
+    normalisation : `callable`, optional
+        A method that performs some kind of normalisation. It must accept and
+        return a `menpo.image.Image`.
+
+    Returns
+    -------
+    image_pyramid : `list` of ``(C, X, Y)`` `ndarray`
+        The `list` of feature-based images per pyramid scale.
+    """
+    images = []
+    for i in range(len(scales)):
+        # If this is the first pass through the loop, then extract features
+        if i == 0:
+            feature_image = features(image)
+
+        # Rescale image
+        if scales[i] != 1:
+            # Scale feature image only if scale is different than 1
+            scaled_image = feature_image.rescale(scales[i])
+        else:
+            # Otherwise the image remains the same
+            scaled_image = feature_image
+
+        # Normalise the scaled image. Do not use cosine mask.
+        scaled_image = image_normalisation(scaled_image,
+                                           normalisation=normalisation,
+                                           cosine_mask=None)
+
+        # Add scaled image to list
+        images.append(scaled_image.pixels)
+
+    return images
