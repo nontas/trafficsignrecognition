@@ -2,7 +2,6 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 from menpofit.math.fft_utils import pad, crop
-from menpo.shape import bounding_box
 
 
 def centered_meshgrid(shape):
@@ -102,25 +101,3 @@ def conv2d(image, f, mode='same', boundary='symmetric'):
         return crop(ext_c, image_shape - filter_shape + 1)
     else:
         raise ValueError("mode must be 'full', 'same' or 'valid'")
-
-
-def get_bounding_box(center, shape):
-    r"""
-    Method that returns a bounding box PointDirectedGraph, given the box center
-    and shape.
-
-    Parameters
-    ----------
-    center : (`float`, `float`)
-        The box center.
-    shape : (`int`, `int`)
-        The box shape.
-
-    Returns
-    -------
-    bbox : `menpo.shape.PointDirectedGraph`
-        The bounding box
-    """
-    half_size = np.asarray(shape) / 2
-    return bounding_box((center[0] - half_size[0], center[1] - half_size[1]),
-                        (center[0] + half_size[0], center[1] + half_size[1]))

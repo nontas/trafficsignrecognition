@@ -96,7 +96,7 @@ class CorrelationFilter(object):
 
         Returns
         -------
-        image : ``(channels, height, width)`` `ndarray`
+        image : `menpo.image.Image`
             The input image.
         as_sum : `bool`, optional
             If ``True``, then the sum of the convolution result over the channels
@@ -104,10 +104,11 @@ class CorrelationFilter(object):
 
         Returns
         -------
-        viewer : `menpo.visualize.ImageViewer`
-            The image viewing object.
+        response : `ndarray`
+            The response.
         """
-        m_conv = conv2d(image, self.correlation_filter, boundary=self.boundary)
+        m_conv = conv2d(image.pixels, self.correlation_filter,
+                        boundary=self.boundary)
         if as_sum:
             m_conv = np.sum(m_conv, axis=0)
         return m_conv

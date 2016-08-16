@@ -2,12 +2,65 @@ import numpy as np
 from functools import partial
 
 from menpo.base import name_of_callable
-from menpo.feature import no_op
+from menpo.shape import bounding_box
 from menpofit.visualize import print_progress
+from menpo.visualize import print_dynamic
+from menpo.transform import Scale
+from menpo.image import Image
 
 from .correlationfilter import CorrelationFilter
 from .normalisation import (normalise_norm_array, image_normalisation,
                             create_cosine_mask)
+from .feature import fast_dsift_hsi, image_pyramid
+
+
+def get_bounding_box(center, shape):
+    r"""
+    Method that returns a bounding box PointDirectedGraph, given the box center
+    and shape.
+
+    Parameters
+    ----------
+    center : (`float`, `float`)
+        The box center.
+    shape : (`int`, `int`)
+        The box shape.
+
+    Returns
+    -------
+    bbox : `menpo.shape.PointDirectedGraph`
+        The bounding box
+    """
+    half_size = np.asarray(shape) / 2
+    return bounding_box((center[0] - half_size[0], center[1] - half_size[1]),
+                        (center[0] + half_size[0], center[1] + half_size[1]))
+
+
+def response_thresholding(response, threshold, filter_shape, scale,
+                          correction_transform):
+    # Find all response values abave threshold
+    all_x, all_y = np.nonzero(response >= threshold)
+    # Find corresponding scores
+    scores = response[response >= threshold]
+    # Create bounding boxes for the above candidate detections. Note that the
+    # bounding boxes need to be transformed to the original image resolution.
+    bboxes = []
+    for x, y in zip(all_x, all_y):
+        # Get bounding box at current scale
+        bbox = get_bounding_box((x, y), filter_shape)
+        # Transform bounding box to original scale (scale = 1)
+        bbox = Scale(1 / scale, n_dims=2).apply(bbox)
+        # Apply the correction affine transform to go to original image
+        # resolution
+        if correction_transform is not None:
+            bbox = correction_transform.apply(bbox)
+        bboxes.append(bbox)
+    return bboxes, list(scores)
+
+
+def attach_bboxes_to_image(image, bboxes):
+    for i, bbox in enumerate(bboxes):
+        image.landmarks['bbox_{:0{}d}'.format(i, len(str(len(bboxes))))] = bbox
 
 
 class Detector(object):
@@ -52,7 +105,7 @@ class Detector(object):
         Computer Vision (ICCV), 2013.
     """
     def __init__(self, images, algorithm='mosse', filter_shape=(64, 64),
-                 features=no_op, normalisation=normalise_norm_array,
+                 features=fast_dsift_hsi, normalisation=normalise_norm_array,
                  cosine_mask=False, response_covariance=2, l=0.01,
                  boundary='symmetric', verbose=True):
         # Assign properties
@@ -95,6 +148,65 @@ class Detector(object):
         :type: `int`
         """
         return self.model.n_channels
+
+    def detect(self, image, scales='all', diagonal=800, probability_thresh=0.008,
+               overlap_thresh=0.1, verbose=True):
+        # Normalise the input image size with respect to diagonal.
+        # Keep the transform object, because we need to transform it back after
+        # the detection is done.
+        if diagonal is not None:
+            tmp_image, correction_transform = image.rescale_to_diagonal(
+                diagonal, return_transform=True)
+        else:
+            tmp_image = image
+            correction_transform = None
+
+        # Parse scales argument
+        if scales == 'all':
+            scales = tuple(np.arange(0.05, 1.05, 0.05))
+        elif scales is None:
+            scales = (1.)
+
+        # Compute features of the original image
+        feat_image = self.features(tmp_image)
+
+        # Get responses at each pyramid level
+        selected_bboxes = []
+        selected_scores = []
+        for scale in list(scales):
+            # Scale image
+            if scale != 1:
+                # Scale feature image only if scale is different than 1
+                scaled_image = feat_image.rescale(scale)
+            else:
+                # Otherwise the image remains the same
+                scaled_image = feat_image
+
+            # Normalise the scaled image. Do not use cosine mask.
+            scaled_image = image_normalisation(
+                scaled_image, normalisation=self.normalisation, cosine_mask=None)
+
+            # Convolve image with filter
+            response = self.model.convolve(scaled_image, as_sum=True)
+
+            # Threshold the response and transform resulting bounding boxes to
+            # original image resolution
+            bboxes, scores = response_thresholding(
+                response, probability_thresh, self.filter_shape, scale,
+                correction_transform)
+
+            # Updated selected bboxes and scores lists
+            selected_bboxes += bboxes
+            selected_scores += scores
+
+            print_dynamic('Scale: {:.2f} | {}x{} | {} bboxes, {} scores | {:.4f}, {:.4f}'.format(
+                scale, scaled_image.shape[0], scaled_image.shape[1], len(bboxes), len(scores),
+                response.min(), response.max()))
+
+        # Attach the bboxes to the image's LandmarkManager
+        attach_bboxes_to_image(image, selected_bboxes)
+
+        return selected_bboxes
 
     def view_spatial_filter(self, figure_id=None, new_figure=False,
                             channels='all', interpolation='bilinear',

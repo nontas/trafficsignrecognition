@@ -86,9 +86,9 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
         # crop extended filter to match desired response shape
         f = crop(f, y_shape)
 
-    # Flip filter
-    f = f[:, ::-1, :]
-    f = f[:, :, ::-1]
+    # # Flip filter
+    # f = f[:, ::-1, :]
+    # f = f[:, :, ::-1]
 
     return f
 
@@ -180,8 +180,8 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
         # crop extended filter to match desired response shape
         f = crop(f, y_shape)
 
-    # Flip filter
-    f = f[:, ::-1, :]
-    f = f[:, :, ::-1]
+    # # Flip filter
+    # f = f[:, ::-1, :]
+    # f = f[:, :, ::-1]
 
     return f
