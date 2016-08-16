@@ -14,7 +14,7 @@ class CorrelationFilter(object):
     ----------
     images : ``(n_images, channels, height, width)`` `ndarray` or `list` of ``(channels, height, width)`` `ndarray`
         The training images from which to learn the filter.
-    type : ``{'mosse', 'mccf'}``, optional
+    algorithm : ``{'mosse', 'mccf'}``, optional
         If 'mosse', then the Minimum Output Sum of Squared Errors (MOSSE)
         filter [1] will be used. If 'mccf', then the Multi-Channel Correlation
         (MCCF) filter [2] will be used.
@@ -40,11 +40,11 @@ class CorrelationFilter(object):
         Correlation Filters". IEEE Proceedings of International Conference on
         Computer Vision (ICCV), 2013.
     """
-    def __init__(self, images, type='mosse', filter_shape=(64, 64),
+    def __init__(self, images, algorithm='mosse', filter_shape=(64, 64),
                  response_covariance=2, l=0.01, boundary='symmetric',
                  verbose=True):
         # Assign properties
-        self.type = type
+        self.algorithm = algorithm
         self.response_covariance = response_covariance
         self.l = l
         self.boundary = boundary
@@ -59,25 +59,34 @@ class CorrelationFilter(object):
                                                   cov=response_covariance)
 
         # Train filter
-        if type == 'mosse':
+        if algorithm == 'mosse':
             self.correlation_filter = train_mosse(
                 images, self.desired_response, l=l, boundary=boundary,
                 crop_filter=True, verbose=verbose)
-        elif type == 'mccf':
+        elif algorithm == 'mccf':
             self.correlation_filter = train_mccf(
                 images, self.desired_response, l=l, boundary=boundary,
                 crop_filter=True, verbose=verbose)
         else:
-            raise ValueError("Filter type can be either 'mosse' or 'mccf'.")
+            raise ValueError("Algorithm can be either 'mosse' or 'mccf'.")
 
     @property
     def filter_shape(self):
         r"""
         Returns the filter' shape.
 
-        :type: `float`
+        :type: (`int`, `int`)
         """
         return self.correlation_filter.shape[1:]
+
+    @property
+    def n_channels(self):
+        r"""
+        Returns the filter' number of channels.
+
+        :type: `int`
+        """
+        return self.correlation_filter.shape[0]
 
     def convolve(self, image, as_sum=True):
         r"""
@@ -360,7 +369,7 @@ class CorrelationFilter(object):
 
     def __str__(self):
         method_name = 'Minimum Output Sum of Squared Errors (MOSSE)'
-        if self.type == 'mccf':
+        if self.algorithm == 'mccf':
             method_name = 'Multi-Channel Correlation (MCCF)'
         output_str = r"""Correlation Filter
  - {}
