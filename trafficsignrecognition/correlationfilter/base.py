@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from menpo.image import Image
 
@@ -111,6 +112,7 @@ class CorrelationFilter(object):
                         boundary=self.boundary)
         if as_sum:
             m_conv = np.sum(m_conv, axis=0)
+        #m_conv = probability_map(m_conv, axes=(-2, -1))
         return m_conv
 
     def view_gaussian_response(self, figure_id=None, new_figure=False,

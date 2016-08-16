@@ -11,7 +11,7 @@ from menpo.image import Image
 from .correlationfilter import CorrelationFilter
 from .normalisation import (normalise_norm_array, image_normalisation,
                             create_cosine_mask)
-from .feature import fast_dsift_hsi, image_pyramid
+from .feature import fast_dsift_hsi
 
 
 def get_bounding_box(center, shape):
@@ -56,6 +56,65 @@ def response_thresholding(response, threshold, filter_shape, scale,
             bbox = correction_transform.apply(bbox)
         bboxes.append(bbox)
     return bboxes, list(scores)
+
+
+def non_max_suppression(bboxes, scores, overlap_thresh):
+    # Malisiewicz et al. method.
+    # if there are no boxes, return an empty list
+    if len(bboxes) == 0:
+        return []
+
+    # grab the coordinates of the bounding boxes
+    x1 = np.empty((len(bboxes), 1))
+    y1 = np.empty((len(bboxes), 1))
+    x2 = np.empty((len(bboxes), 1))
+    y2 = np.empty((len(bboxes), 1))
+    for i, b in enumerate(bboxes):
+        x1[i] = np.min(b.points[:, 0])
+        y1[i] = np.min(b.points[:, 1])
+        x2[i] = np.max(b.points[:, 0])
+        y2[i] = np.max(b.points[:, 1])
+    sc = np.asarray(scores)   # score confidence
+
+    # initialize the list of picked indexes
+    pick = []
+
+    # compute the area of the bounding boxes and sort the bounding
+    # boxes by the bottom-right y-coordinate of the bounding box
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    idxs = np.argsort(sc)
+
+    # keep looping while some indexes still remain in the indexes
+    # list
+    while len(idxs) > 0:
+        # grab the last index in the indexes list and add the
+        # index value to the list of picked indexes
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+
+        # find the largest (x, y) coordinates for the start of
+        # the bounding box and the smallest (x, y) coordinates
+        # for the end of the bounding box
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+
+        # compute the width and height of the bounding box
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+
+        # compute the ratio of overlap
+        overlap = (w * h) / area[idxs[:last]]
+
+        # delete all indexes from the index list that have
+        idxs = np.delete(idxs, np.concatenate(([last],
+                                               np.where(overlap > overlap_thresh)[0])))
+
+    # return only the bounding boxes that were picked using the
+    # integer data type
+    return [bboxes[i] for i in pick], [scores[i] for i in pick]
 
 
 def attach_bboxes_to_image(image, bboxes):
@@ -150,10 +209,13 @@ class Detector(object):
         return self.model.n_channels
 
     def detect(self, image, scales='all', diagonal=800, probability_thresh=0.008,
-               overlap_thresh=0.1, verbose=True):
+               overlap_thresh=0.1, return_responses=False, verbose=True):
         # Normalise the input image size with respect to diagonal.
         # Keep the transform object, because we need to transform it back after
         # the detection is done.
+        if verbose:
+            print_dynamic("Detecting: ")
+
         if diagonal is not None:
             tmp_image, correction_transform = image.rescale_to_diagonal(
                 diagonal, return_transform=True)
@@ -165,7 +227,7 @@ class Detector(object):
         if scales == 'all':
             scales = tuple(np.arange(0.05, 1.05, 0.05))
         elif scales is None:
-            scales = (1.)
+            scales = [1.]
 
         # Compute features of the original image
         feat_image = self.features(tmp_image)
@@ -173,7 +235,11 @@ class Detector(object):
         # Get responses at each pyramid level
         selected_bboxes = []
         selected_scores = []
-        for scale in list(scales):
+        if return_responses:
+            responses = []
+        wrap = partial(print_progress, prefix='Detecting', verbose=verbose,
+                       end_with_newline=False, show_count=False)
+        for scale in wrap(list(scales)[::-1]):
             # Scale image
             if scale != 1:
                 # Scale feature image only if scale is different than 1
@@ -188,6 +254,8 @@ class Detector(object):
 
             # Convolve image with filter
             response = self.model.convolve(scaled_image, as_sum=True)
+            if return_responses:
+                responses.append(Image(response))
 
             # Threshold the response and transform resulting bounding boxes to
             # original image resolution
@@ -199,14 +267,25 @@ class Detector(object):
             selected_bboxes += bboxes
             selected_scores += scores
 
-            print_dynamic('Scale: {:.2f} | {}x{} | {} bboxes, {} scores | {:.4f}, {:.4f}'.format(
-                scale, scaled_image.shape[0], scaled_image.shape[1], len(bboxes), len(scores),
-                response.min(), response.max()))
+        # Perform non maximum supression
+        bboxes, scores = non_max_suppression(selected_bboxes, selected_scores,
+                                             overlap_thresh)
 
         # Attach the bboxes to the image's LandmarkManager
-        attach_bboxes_to_image(image, selected_bboxes)
+        attach_bboxes_to_image(image, bboxes)
 
-        return selected_bboxes
+        if verbose:
+            msg = "No detections."
+            if len(bboxes) == 1:
+                msg = "1 detection."
+            elif len(bboxes) > 1:
+                msg = "{} detections.".format(len(bboxes))
+            print_dynamic(msg)
+
+        if return_responses:
+            return bboxes, scores, responses
+        else:
+            return bboxes, scores
 
     def view_spatial_filter(self, figure_id=None, new_figure=False,
                             channels='all', interpolation='bilinear',
