@@ -34,12 +34,6 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     -------
     f : ``(1, response_h, response_w)`` `ndarray`
         The learned Minimum Output Sum of Squared Errors (MOSSE) filter.
-    sXY : ``(N,)`` `ndarray`
-        The auto-correlation array, where
-        ``N = (image_h+response_h-1) * (image_w+response_w-1) * n_channels``.
-    sXX : ``(N, N)`` `ndarray`
-        The cross-correlation array, where
-        ``N = (image_h+response_h-1) * (image_w+response_w-1) * n_channels``.
 
     References
     ----------
@@ -92,7 +86,11 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
         # crop extended filter to match desired response shape
         f = crop(f, y_shape)
 
-    return f, sXY, sXX
+    # Flip filter
+    f = f[:, ::-1, :]
+    f = f[:, :, ::-1]
+
+    return f
 
 
 def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
@@ -121,12 +119,6 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     -------
     f : ``(1, response_h, response_w)`` `ndarray`
         The learned Multi-Channel Correlation Filter (MCCF) filter.
-    sXY : ``(N,)`` `ndarray`
-        The auto-correlation array, where
-        ``N = (image_h+response_h-1) * (image_w+response_w-1) * n_channels``.
-    sXX : ``(N, N)`` `ndarray`
-        The cross-correlation array, where
-        ``N = (image_h+response_h-1) * (image_w+response_w-1) * n_channels``.
 
     References
     ----------
@@ -151,7 +143,7 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     # extend desired response
     ext_y = pad(y, ext_shape)
     # fft of extended desired response
-    fft_ext_y = np.fft.fft2(ext_y)
+    fft_ext_y = fft2(ext_y)
 
     # extend images
     ext_X = pad(X, ext_shape, boundary=boundary)
@@ -163,7 +155,7 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     wrap = partial(print_progress, prefix='Learning filter', verbose=verbose)
     for ext_x in wrap(ext_X):
         # fft of extended image
-        fft_ext_x = np.fft.fft2(ext_x)
+        fft_ext_x = fft2(ext_x)
 
         # store extended image fft as sparse diagonal matrix
         diag_fft_x = spdiags(fft_ext_x.reshape((k, -1)),
@@ -182,10 +174,14 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     fft_ext_f = fft_ext_f.reshape((k, ext_h, ext_w))
 
     # compute filter inverse fft
-    f = np.real(np.fft.ifftshift(np.fft.ifft2(fft_ext_f), axes=(-2, -1)))
+    f = np.real(ifftshift(ifft2(fft_ext_f), axes=(-2, -1)))
 
     if crop_filter:
         # crop extended filter to match desired response shape
         f = crop(f, y_shape)
 
-    return f, sXY, sXX
+    # Flip filter
+    f = f[:, ::-1, :]
+    f = f[:, :, ::-1]
+
+    return f
