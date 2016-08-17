@@ -3,7 +3,7 @@
 Traffic sign detection and Recognition using a Filter-bank of Correlation Filters.
 
 ## Installation
-This project depends on the [Menpo Project](http://www.menpo.org/), which is multi-platform (Windows, Lnux, OS X). As explained in [Menpo's installation isntructions](http://www.menpo.org/installation/), it is highly recommended to use [conda](http://conda.pydata.org/miniconda.html) as your Python distribution.
+This project depends on the [Menpo Project](http://www.menpo.org/), which is multi-platform (Linux, Windows, OS X). As explained in [Menpo's installation isntructions](http://www.menpo.org/installation/), it is highly recommended to use [conda](http://conda.pydata.org/miniconda.html) as your Python distribution.
 
 Once downloading and installing [conda](http://conda.pydata.org/miniconda.html), this project can be isntalled by:
 
