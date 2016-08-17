@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 
 
 def print_str(bboxes, n_scales):
+    r"""
+    Returns a detection result `str`.
+    """
     msg = "No detections."
     sc_str = "after detecting in {} scales.".format(n_scales)
     if len(bboxes) == 1:
@@ -12,6 +15,22 @@ def print_str(bboxes, n_scales):
 
 
 class DetectionResult(object):
+    r"""
+    Class for storing a detection result.
+
+    Parameters
+    ----------
+    image : `menpo.image.Image`
+        The test image.
+    bboxes : `list` of `menpo.shape.PointDirectedGraph`
+        The detected bounding boxes.
+    scores : `list` of `float`
+        The scores that correspond to the bounding boxes.
+    scales : `list` of `float`
+        The pyramid's scale factors.
+    responses : `list` of `menpo.image.Image` or ``None``, optional
+        The responses per scale.
+    """
     def __init__(self, image, bboxes, scores, scales, responses=None):
         self.image = image
         self.bboxes = bboxes
@@ -21,6 +40,11 @@ class DetectionResult(object):
 
     @property
     def n_scales(self):
+        """
+        Returns the number of scales.
+
+        :type: `int`
+        """
         return len(self.scales)
 
     def view(self, figure_id=None, new_figure=False, channels=None,
@@ -283,6 +307,25 @@ class DetectionResult(object):
 
 
 class ClassificationResult(object):
+    r"""
+    Class for storing a classification result.
+
+    Parameters
+    ----------
+    image : `menpo.image.Image`
+        The test image.
+    bbox : `menpo.shape.PointDirectedGraph`
+        The detected bounding box.
+    classname : `str`
+        The name of the class that the object was classified.
+    scales : `list` of `float`
+        The pyramid's scale factors.
+    labels : `list` of `str`
+        The label of each potential class.
+    all_detections : (`list`, `list`, `list`) or ``None``, optional
+        All the detections from the filterbank. The first list has the bboxes,
+        the second has the scores and the third has the classnames.
+    """
     def __init__(self, image, bbox, classname, scales, labels,
                  all_detections=None):
         self.image = image
@@ -294,6 +337,11 @@ class ClassificationResult(object):
 
     @property
     def n_scales(self):
+        """
+        Returns the number of scales.
+
+        :type: `int`
+        """
         return len(self.scales)
 
     def view(self, figure_id=None, new_figure=False, channels=None,
@@ -434,7 +482,39 @@ class ClassificationResult(object):
         return viewer
 
     def view_all_detections(self, figure_id=None, new_figure=False, channels=None,
-                            interpolation='bilinear', cmap_name=None, alpha=1.):
+                            interpolation='bilinear', cmap_name=None, alpha=1.,
+                            figure_size=(10, 8)):
+        """
+        Visualize all the potential detections with their labels.
+
+        Parameters
+        ----------
+        figure_id : `object`, optional
+            The id of the figure to be used.
+        new_figure : `bool`, optional
+            If ``True``, a new figure is created.
+        channels : `int` or `list` of `int` or ``all`` or ``None``
+            If `int` or `list` of `int`, the specified channel(s) will be
+            rendered. If ``all``, all the channels will be rendered in subplots.
+            If ``None`` and the image is RGB, it will be rendered in RGB mode.
+            If ``None`` and the image is not RGB, it is equivalent to ``all``.
+        interpolation : See Below, optional
+            The interpolation used to render the image. For example, if
+            ``bilinear``, the image will be smooth and if ``nearest``, the
+            image will be pixelated. Example options ::
+
+                {none, nearest, bilinear, bicubic, spline16, spline36, hanning,
+                hamming, hermite, kaiser, quadric, catrom, gaussian, bessel,
+                mitchell, sinc, lanczos}
+
+        cmap_name: `str`, optional,
+            If ``None``, single channel and three channel images default
+            to greyscale and rgb colormaps respectively.
+        alpha : `float`, optional
+            The alpha blending value, between 0 (transparent) and 1 (opaque).
+        figure_size : (`float`, `float`) `tuple` or ``None`` optional
+            The size of the figure in inches.
+        """
         from menpo.visualize.viewmatplotlib import (_set_legend,
                                                     sample_colours_from_colourmap)
         colours = sample_colours_from_colourmap(len(self.labels), 'jet')
@@ -447,7 +527,8 @@ class ClassificationResult(object):
         for bb, lb in zip(self.all_detections[0], self.all_detections[2]):
             idx = self.labels.index(lb)
             c = colours[idx]
-            bb.view(line_colour=c, render_markers=False, line_width=2, label=lb)
+            bb.view(line_colour=c, render_markers=False, line_width=2, label=lb,
+                    figure_size=figure_size)
         _set_legend(plt.gca(), legend_handles=None)
 
     def __str__(self):

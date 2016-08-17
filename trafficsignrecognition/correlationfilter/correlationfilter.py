@@ -27,6 +27,8 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
         If ``True``, the shape of the MOSSE filter is the same as the shape
         of the desired response. If ``False``, the filter's shape is equal to:
         ``X[0].shape + y.shape - 1``.
+    prefix : `str`, optional
+        The prefix of the progress bar.
     verbose : `bool`, optional
         If ``True``, then a progress bar is printed.
 
@@ -113,6 +115,8 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
         If ``True``, the shape of the MCCF filter is the same as the shape
         of the desired response. If ``False``, the filter's shape is equal to:
         ``X[0].shape + y.shape - 1``.
+    prefix : `str`, optional
+        The prefix of the progress bar.
     verbose : `bool`, optional
         If ``True``, then a progress bar is printed.
 

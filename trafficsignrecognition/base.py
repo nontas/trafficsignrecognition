@@ -39,6 +39,31 @@ def get_bounding_box(center, shape):
 
 def response_thresholding(response, threshold, filter_shape, scale,
                           correction_transform):
+    r"""
+    Method for selecting candidate detections by thresholding the response map.
+    The bounding boxes of these detections are transformed back to the original
+    image resolution.
+
+    Parameters
+    ----------
+    response : `ndarray`
+        The response map.
+    threshold : `float`
+        The score threshold to use selecting candidate locations.
+    filter_shape : (`int`, `int`)
+        The shape of the filter.
+    scale : `float`
+        The current scale factor.
+    correction_transform : `menpo.transform.AffineTransform`
+        The transform object to go back to the original image resolution.
+
+    Returns
+    -------
+    bboxes : `list` of `menpo.shape.PointDirectedGraph`
+        The list of selected bounding boxes in the original image resolution.
+    scores : `list`
+        The corresponding scores.
+    """
     # Find all response values abave threshold
     all_x, all_y = np.nonzero(response >= threshold)
     # Find corresponding scores
@@ -60,6 +85,25 @@ def response_thresholding(response, threshold, filter_shape, scale,
 
 
 def non_max_suppression(bboxes, scores, overlap_thresh):
+    r"""
+    Faster Non-Maximum Suppression by Malisiewicz et al.
+
+    Parameters
+    ----------
+    bboxes : `list` of `menpo.shape.PointDirectedGraph`
+        The candidate bounding boxes.
+    scores : `list` of `float`
+        The corresponding scores per bounding box.
+    overlap_thresh : `float`
+        The overlapping threshold.
+
+    Returns
+    -------
+    bboxes : `list` of `menpo.shape.PointDirectedGraph`
+        The list of final bounding boxes in the original image resolution.
+    scores : `list`
+        The corresponding scores.
+    """
     # Malisiewicz et al. method.
     # if there are no boxes, return an empty list
     if len(bboxes) == 0:
@@ -119,6 +163,10 @@ def non_max_suppression(bboxes, scores, overlap_thresh):
 
 
 def attach_bboxes_to_image(image, bboxes):
+    r"""
+    Method that attaches the given bounding boxes to the landmark manager of the
+    provided image.
+    """
     for i, bbox in enumerate(bboxes):
         image.landmarks['bbox_{:0{}d}'.format(i, len(str(len(bboxes))))] = bbox
 
@@ -151,6 +199,8 @@ class Detector(object):
         Regularization parameter of the correlation filter.
     boundary : ``{'constant', 'symmetric'}``, optional
         Determines the type of padding that will be applied on the images.
+    prefix : `str`, optional
+        The prefix of the progress bar.
     verbose : `bool`, optional
         If ``True``, then a progress bar is printed.
 
@@ -212,6 +262,38 @@ class Detector(object):
     def detect(self, image, scales='all', diagonal=400, score_thresh=0.025,
                overlap_thresh=0.1, return_responses=False, prefix='Detecting ',
                verbose=True):
+        r"""
+        Perform detection in a test image.
+
+        Parameters
+        ----------
+        image : `menpo.image.Image`
+            The test image.
+        scales : `list` of `float` or ``'all'`` or None, optional
+            The scales on which to apply the detection. The scales must be
+            defined with respect to the original image resolution (after the
+            diagonal normalisation). If ``None``, then no pyramid is used. If
+            ``'all'``, then ``scales = np.arange(0.05, 1.05, 0.05)``.
+        diagonal : `float` or ``None``, optional
+            The diagonal to which the input image will be rescaled before the
+            detection.
+        score_thresh : `float`, optional
+            The threshold to use for the response map (scores).
+        overlap_thresh: `float`, optional,
+            The overlapping threshold of non-maximum suppression.
+        return_responses : `bool`, optional
+            If ``True``, then the response maps per scale will be stored and
+            returned.
+        prefix : `str`, optional
+            The prefix of the progress bar.
+        verbose : `bool`, optional
+            If ``True``, a progress bar is printed.
+
+        Returns
+        -------
+        result : `DetectionResult`
+            A detection result object.
+        """
         # Normalise the input image size with respect to diagonal.
         # Keep the transform object, because we need to transform it back after
         # the detection is done.
@@ -231,14 +313,14 @@ class Detector(object):
         # Compute features of the original image
         feat_image = self.features(tmp_image)
 
-        # Get responses at each pyramid level
+        # Initialize lists
         selected_bboxes = []
         selected_scores = []
-
         responses = None
         if return_responses:
             responses = []
 
+        # Get response and candidate bounding boxes at each scale
         wrap = partial(print_progress, prefix=prefix, verbose=verbose,
                        end_with_newline=False, show_count=False)
         for scale in wrap(list(scales)[::-1]):
@@ -269,19 +351,14 @@ class Detector(object):
             selected_bboxes += bboxes
             selected_scores += scores
 
-            # print_dynamic("{:.5f}, {:.5f}".format(np.min(response),
-            #                                       np.max(response)))
-
-        # Perform non maximum supression
+        # Perform non-maximum suppression
         bboxes, scores = non_max_suppression(selected_bboxes, selected_scores,
                                              overlap_thresh)
-
-        # Attach the bboxes to the image's LandmarkManager
-        attach_bboxes_to_image(image, bboxes)
 
         if verbose:
             print_dynamic(print_str(bboxes, len(scales)))
 
+        # Return detection result object
         return DetectionResult(image, bboxes, scores, scales, responses)
 
     def view_spatial_filter(self, figure_id=None, new_figure=False,
@@ -295,8 +372,8 @@ class Detector(object):
         r"""
         View the multi-channel filter on the spatial domain.
 
-        Returns
-        -------
+        Parameters
+        ----------
         figure_id : `object`, optional
             The id of the figure to be used.
         new_figure : `bool`, optional
@@ -381,8 +458,8 @@ class Detector(object):
         r"""
         View the multi-channel filter on the frequency domain.
 
-        Returns
-        -------
+        Parameters
+        ----------
         figure_id : `object`, optional
             The id of the figure to be used.
         new_figure : `bool`, optional
@@ -473,8 +550,8 @@ class Classification(object):
     ----------
     images : `list` of `list` of `menpo.image.Image`
         The training images per class.
-    n_classes : `int`
-        The number of classes.
+    labels : `list` of `str`
+        The label per class.
     algorithm : ``{'mosse', 'mccf'}``, optional
         If 'mosse', then the Minimum Output Sum of Squared Errors (MOSSE)
         filter [1] will be used. If 'mccf', then the Multi-Channel Correlation
@@ -495,6 +572,8 @@ class Classification(object):
         Regularization parameter of the correlation filter.
     boundary : ``{'constant', 'symmetric'}``, optional
         Determines the type of padding that will be applied on the images.
+    prefix : `str`, optional
+        The prefix of the progress bar.
     verbose : `bool`, optional
         If ``True``, then a progress bar is printed.
 
@@ -541,19 +620,55 @@ class Classification(object):
 
     def fit(self, image, scales='all', diagonal=400, score_thresh=0.025,
             overlap_thresh=0.1, return_all_detections=True, verbose=True):
+        r"""
+        Fit a test image.
+
+        Parameters
+        ----------
+        image : `menpo.image.Image`
+            The test image.
+        scales : `list` of `float` or ``'all'`` or None, optional
+            The scales on which to apply the detection. The scales must be
+            defined with respect to the original image resolution (after the
+            diagonal normalisation). If ``None``, then no pyramid is used. If
+            ``'all'``, then ``scales = np.arange(0.05, 1.05, 0.05)``.
+        diagonal : `float` or ``None``, optional
+            The diagonal to which the input image will be rescaled before the
+            detection.
+        score_thresh : `float`, optional
+            The threshold to use for the response map (scores).
+        overlap_thresh: `float`, optional,
+            The overlapping threshold of non-maximum suppression.
+        return_all_detections : `bool`, optional
+            If ``True``, then all the detections from all filters will be
+            returned.
+        verbose : `bool`, optional
+            If ``True``, a progress bar is printed.
+
+        Returns
+        -------
+        result : `DetectionResult`
+            A detection result object.
+        """
+        # Initialize lists
         all_bboxes = []
         all_scores = []
         all_classnames = []
+        # initialize final result
         classname = None
         bbox = None
         max_score = -np.inf
         results = []
+        # For each class filter
         for cl in range(self.n_classes):
+            # Perform detection
             result = self.models[cl].detect(
                 image, scales=scales, diagonal=diagonal,
                 return_responses=False, score_thresh=score_thresh,
                 overlap_thresh=overlap_thresh,
                 prefix="Filter '{}'".format(self.labels[cl]), verbose=verbose)
+            # If at least one bounding box was returned, then check if there is
+            # a score larger than the current maximum.
             if len(result.scores) > 0:
                 if np.max(result.scores) > max_score:
                     max_score = np.max(result.scores)
@@ -565,14 +680,19 @@ class Classification(object):
                     all_scores += result.scores
                     all_classnames += [self.labels[cl]] * len(result.bboxes)
             results.append(result)
+
         if verbose:
             if classname is not None:
                 print_dynamic("Detected class: '{}'".format(classname))
             else:
                 print_dynamic('No detections.')
+
+        # Return all detected results, if required
         all_detections = None
         if return_all_detections:
             all_detections = (all_bboxes, all_scores, all_classnames)
+
+        # Return a classification result object
         return ClassificationResult(image, bbox, classname, scales, self.labels,
                                     all_detections=all_detections)
 
