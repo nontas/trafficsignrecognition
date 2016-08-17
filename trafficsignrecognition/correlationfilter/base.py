@@ -43,7 +43,7 @@ class CorrelationFilter(object):
     """
     def __init__(self, images, algorithm='mosse', filter_shape=(64, 64),
                  response_covariance=2, l=0.01, boundary='symmetric',
-                 verbose=True):
+                 prefix='', verbose=True):
         # Assign properties
         self.algorithm = algorithm
         self.response_covariance = response_covariance
@@ -63,11 +63,11 @@ class CorrelationFilter(object):
         if algorithm == 'mosse':
             self.correlation_filter = train_mosse(
                 images, self.desired_response, l=l, boundary=boundary,
-                crop_filter=True, verbose=verbose)
+                crop_filter=True, prefix=prefix, verbose=verbose)
         elif algorithm == 'mccf':
             self.correlation_filter = train_mccf(
                 images, self.desired_response, l=l, boundary=boundary,
-                crop_filter=True, verbose=verbose)
+                crop_filter=True, prefix=prefix, verbose=verbose)
         else:
             raise ValueError("Algorithm can be either 'mosse' or 'mccf'.")
 

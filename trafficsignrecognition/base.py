@@ -12,7 +12,7 @@ from .correlationfilter import CorrelationFilter
 from .normalisation import (normalise_norm_array, image_normalisation,
                             create_cosine_mask)
 from .feature import fast_dsift_hsi
-from .result import DetectionResult, print_str
+from .result import DetectionResult, print_str, ClassificationResult
 
 
 def get_bounding_box(center, shape):
@@ -63,7 +63,7 @@ def non_max_suppression(bboxes, scores, overlap_thresh):
     # Malisiewicz et al. method.
     # if there are no boxes, return an empty list
     if len(bboxes) == 0:
-        return []
+        return [], []
 
     # grab the coordinates of the bounding boxes
     x1 = np.empty((len(bboxes), 1))
@@ -164,10 +164,10 @@ class Detector(object):
         Correlation Filters". IEEE Proceedings of International Conference on
         Computer Vision (ICCV), 2013.
     """
-    def __init__(self, images, algorithm='mosse', filter_shape=(64, 64),
+    def __init__(self, images, algorithm='mosse', filter_shape=(25, 25),
                  features=fast_dsift_hsi, normalisation=normalise_norm_array,
                  cosine_mask=False, response_covariance=2, l=0.01,
-                 boundary='symmetric', verbose=True):
+                 boundary='symmetric', prefix='', verbose=True):
         # Assign properties
         self.algorithm = algorithm
         self.features = features
@@ -182,8 +182,8 @@ class Detector(object):
             cosine_mask = create_cosine_mask(filter_shape)
 
         # Prepare data
-        wrap = partial(print_progress, prefix='Pre-processing data',
-                       verbose=verbose)
+        wrap = partial(print_progress, prefix=prefix + 'Pre-processing data',
+                       verbose=verbose, end_with_newline=False)
         normalized_data = []
         for im in wrap(images):
             im = features(im)
@@ -198,7 +198,7 @@ class Detector(object):
         self.model = CorrelationFilter(
             normalized_data, algorithm=algorithm, filter_shape=filter_shape,
             response_covariance=response_covariance, l=l, boundary=boundary,
-            verbose=verbose)
+            prefix=prefix, verbose=verbose)
 
     @property
     def n_channels(self):
@@ -209,14 +209,12 @@ class Detector(object):
         """
         return self.model.n_channels
 
-    def detect(self, image, scales='all', diagonal=800, probability_thresh=0.008,
-               overlap_thresh=0.1, return_responses=False, verbose=True):
+    def detect(self, image, scales='all', diagonal=400, score_thresh=0.025,
+               overlap_thresh=0.1, return_responses=False, prefix='Detecting ',
+               verbose=True):
         # Normalise the input image size with respect to diagonal.
         # Keep the transform object, because we need to transform it back after
         # the detection is done.
-        if verbose:
-            print_dynamic("Detecting: ")
-
         if diagonal is not None:
             tmp_image, correction_transform = image.rescale_to_diagonal(
                 diagonal, return_transform=True)
@@ -241,7 +239,7 @@ class Detector(object):
         if return_responses:
             responses = []
 
-        wrap = partial(print_progress, prefix='Detecting', verbose=verbose,
+        wrap = partial(print_progress, prefix=prefix, verbose=verbose,
                        end_with_newline=False, show_count=False)
         for scale in wrap(list(scales)[::-1]):
             # Scale image
@@ -264,12 +262,15 @@ class Detector(object):
             # Threshold the response and transform resulting bounding boxes to
             # original image resolution
             bboxes, scores = response_thresholding(
-                response, probability_thresh, self.filter_shape, scale,
+                response, score_thresh, self.filter_shape, scale,
                 correction_transform)
 
             # Updated selected bboxes and scores lists
             selected_bboxes += bboxes
             selected_scores += scores
+
+            # print_dynamic("{:.5f}, {:.5f}".format(np.min(response),
+            #                                       np.max(response)))
 
         # Perform non maximum supression
         bboxes, scores = non_max_suppression(selected_bboxes, selected_scores,
@@ -461,3 +462,177 @@ class Detector(object):
  - Channels: {}
  """.format(name_of_callable(self.features), self.n_channels)
         return output_str + self.model.__str__()
+
+
+class Classification(object):
+    r"""
+    Class for training a filter-bank of multi-channel correlation filters for
+    object classification.
+
+    Parameters
+    ----------
+    images : `list` of `list` of `menpo.image.Image`
+        The training images per class.
+    n_classes : `int`
+        The number of classes.
+    algorithm : ``{'mosse', 'mccf'}``, optional
+        If 'mosse', then the Minimum Output Sum of Squared Errors (MOSSE)
+        filter [1] will be used. If 'mccf', then the Multi-Channel Correlation
+        (MCCF) filter [2] will be used.
+    filter_shape : (`int`, `int`), optional
+        The shape of the filter.
+    features : `callable`, optional
+        The holistic dense features to be extracted from the images.
+    normalisation : `callable`, optional
+        The callable to be used for normalising the images.
+    cosine_mask : `bool`, optional
+        If ``True``, then a cosine mask (Hanning window) will be applied on the
+        images.
+    response_covariance : `int`, optional
+        The covariance of the Gaussian desired response that will be used during
+        training of the correlation filter.
+    l : `float`, optional
+        Regularization parameter of the correlation filter.
+    boundary : ``{'constant', 'symmetric'}``, optional
+        Determines the type of padding that will be applied on the images.
+    verbose : `bool`, optional
+        If ``True``, then a progress bar is printed.
+
+    References
+    ----------
+    .. [1] D. S. Bolme, J. R. Beveridge, B. A. Draper, and Y. M. Lui. "Visual
+        Object Tracking using Adaptive Correlation Filters", IEEE Proceedings
+        of International Conference on Computer Vision and Pattern Recognition
+        (CVPR), 2010.
+    .. [2] H. K. Galoogahi, T. Sim, and Simon Lucey. "Multi-Channel
+        Correlation Filters". IEEE Proceedings of International Conference on
+        Computer Vision (ICCV), 2013.
+    """
+    def __init__(self, images, labels, algorithm='mosse',
+                 filter_shape=(29, 29), features=fast_dsift_hsi,
+                 normalisation=normalise_norm_array, cosine_mask=False,
+                 response_covariance=2, l=0.01, boundary='symmetric',
+                 verbose=True):
+        # Check images
+        if len(images) != len(labels):
+            raise ValueError('The provided images and labels have different '
+                             'number of classes.')
+
+        # Assign properties
+        self.algorithm = algorithm
+        self.features = features
+        self.filter_shape = filter_shape
+        self.normalisation = normalisation
+        self.cosine_mask = cosine_mask
+        self.boundary = boundary
+        self.labels = labels
+        self.n_classes = len(labels)
+
+        # Train filters
+        self.models = []
+        for cl in range(self.n_classes):
+            class_str = 'Class {}: '.format(cl)
+            detector = Detector(
+                images[cl], algorithm=algorithm, filter_shape=filter_shape,
+                features=features, normalisation=normalisation,
+                cosine_mask=cosine_mask, response_covariance=response_covariance,
+                l=l, boundary=boundary, prefix=class_str, verbose=verbose)
+            self.models.append(detector)
+
+    def fit(self, image, scales='all', diagonal=400, score_thresh=0.025,
+            overlap_thresh=0.1, return_all_detections=True, verbose=True):
+        all_bboxes = []
+        all_scores = []
+        all_classnames = []
+        classname = None
+        bbox = None
+        max_score = -np.inf
+        results = []
+        for cl in range(self.n_classes):
+            result = self.models[cl].detect(
+                image, scales=scales, diagonal=diagonal,
+                return_responses=False, score_thresh=score_thresh,
+                overlap_thresh=overlap_thresh,
+                prefix="Filter '{}'".format(self.labels[cl]), verbose=verbose)
+            if len(result.scores) > 0:
+                if np.max(result.scores) > max_score:
+                    max_score = np.max(result.scores)
+                    classname = self.labels[cl]
+                    idx = np.argmax(result.scores)
+                    bbox = result.bboxes[idx]
+                if return_all_detections:
+                    all_bboxes += result.bboxes
+                    all_scores += result.scores
+                    all_classnames += [self.labels[cl]] * len(result.bboxes)
+            results.append(result)
+        if verbose:
+            if classname is not None:
+                print_dynamic("Detected class: '{}'".format(classname))
+            else:
+                print_dynamic('No detections.')
+        all_detections = None
+        if return_all_detections:
+            all_detections = (all_bboxes, all_scores, all_classnames)
+        return ClassificationResult(image, bbox, classname, scales, self.labels,
+                                    all_detections=all_detections)
+
+    def view_spatial_filters_widget(self, browser_style='buttons',
+                                    figure_size=(10, 8), style='coloured'):
+        r"""
+        Visualize the spatial filters using an interactive widget.
+
+        Parameters
+        ----------
+        browser_style : {``'buttons'``, ``'slider'``}, optional
+            It defines whether the selector of the images will have the form of
+            plus/minus buttons or a slider.
+        figure_size : (`int`, `int`), optional
+            The initial size of the rendered figure.
+        style : {``'coloured'``, ``'minimal'``}, optional
+            If ``'coloured'``, then the style of the widget will be coloured. If
+            ``minimal``, then the style is simple using black and white colours.
+        """
+        filters = [Image(m.model.correlation_filter) for m in self.models]
+        try:
+            from menpowidgets import visualize_images
+            visualize_images(filters, figure_size=figure_size,
+                             style=style, browser_style=browser_style)
+        except ImportError:
+            from menpo.visualize.base import MenpowidgetsMissingError
+            raise MenpowidgetsMissingError()
+
+    def view_frequency_filters_widget(self, browser_style='buttons',
+                                      figure_size=(10, 8), style='coloured'):
+        r"""
+        Visualize the frequency filters using an interactive widget.
+
+        Parameters
+        ----------
+        browser_style : {``'buttons'``, ``'slider'``}, optional
+            It defines whether the selector of the images will have the form of
+            plus/minus buttons or a slider.
+        figure_size : (`int`, `int`), optional
+            The initial size of the rendered figure.
+        style : {``'coloured'``, ``'minimal'``}, optional
+            If ``'coloured'``, then the style of the widget will be coloured. If
+            ``minimal``, then the style is simple using black and white colours.
+        """
+        filters = []
+        for m in self.models:
+            freq_f = np.abs(np.fft.fftshift(np.fft.fft2(m.model.correlation_filter)))
+            filters.append(Image(freq_f))
+        try:
+            from menpowidgets import visualize_images
+            visualize_images(filters, figure_size=figure_size,
+                             style=style, browser_style=browser_style)
+        except ImportError:
+            from menpo.visualize.base import MenpowidgetsMissingError
+            raise MenpowidgetsMissingError()
+
+    def __str__(self):
+        output_str = r"""Filter-bank of Correlation Filters Classification
+ - Classes: {}
+   - {}
+ - Features: {}
+ """.format(self.n_classes, self.labels, name_of_callable(self.features))
+        return output_str + self.models[0].__str__()

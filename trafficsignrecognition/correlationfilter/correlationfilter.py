@@ -9,7 +9,7 @@ from menpofit.math.fft_utils import pad, crop
 
 
 def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
-                verbose=True):
+                prefix='', verbose=True):
     r"""
     Minimum Output Sum of Squared Errors (MOSSE) filter.
 
@@ -63,7 +63,8 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     sXX = 0
     sXY = 0
     # for each training image and desired response
-    wrap = partial(print_progress, prefix='Learning filter', verbose=verbose)
+    wrap = partial(print_progress, prefix=prefix + 'Learning filter',
+                   verbose=verbose, end_with_newline=False)
     for x in wrap(X):
         # extend image
         ext_x = pad(x, ext_shape, boundary=boundary)
@@ -94,7 +95,7 @@ def train_mosse(X, y, l=0.01, boundary='symmetric', crop_filter=True,
 
 
 def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
-               verbose=True):
+               prefix='', verbose=True):
     r"""
     Multi-Channel Correlation (MCCF) Filter.
 
@@ -152,7 +153,8 @@ def train_mccf(X, y, l=0.01, boundary='symmetric', crop_filter=True,
     sXX = 0
     sXY = 0
     # for each training image and desired response
-    wrap = partial(print_progress, prefix='Learning filter', verbose=verbose)
+    wrap = partial(print_progress, prefix=prefix + 'Learning filter',
+                   verbose=verbose, end_with_newline=False)
     for ext_x in wrap(ext_X):
         # fft of extended image
         fft_ext_x = fft2(ext_x)
