@@ -21,7 +21,10 @@ conda install -c menpo menpofit menpowidgets
 **Step 3:** Clone and install the `trafficsignrecognition` project
 ```console
 cd ~/Documents
-git clone 
+git clone git@github.com:nontas/trafficsignrecognition.git
 pip install -e trafficsignrecognition/
 ```
-```
+
+
+## Get Started
+Please see the [**Notebooks**](https://github.com/nontas/trafficsignrecognition/tree/master/trafficsignrecognition) for examples on how to train and use the model.
