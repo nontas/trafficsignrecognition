@@ -1,11 +1,9 @@
 from setuptools import setup, find_packages
-import versioneer
 
 
 setup(
     name='trafficsignrecognition',
     version='0.1',
-    cmdclass=versioneer.get_cmdclass(),
     description="Traffic Sign Detection and Recognition",
     author='Epameinondas Antonakos',
     author_email='antonakosn@gmail.com',

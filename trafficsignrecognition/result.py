@@ -167,6 +167,7 @@ class DetectionResult(object):
             figure_id=figure_id, new_figure=new_figure, channels=channels,
             interpolation=interpolation, cmap_name=cmap_name, alpha=alpha,
             render_axes=False)
+        plt.title(print_str(self.bboxes, self.n_scales))
         if len(self.bboxes) == 0:
             return viewer
         if len(self.bboxes) > 2:
@@ -479,6 +480,8 @@ class ClassificationResult(object):
                 axes_y_limits=axes_y_limits, axes_x_ticks=axes_x_ticks,
                 axes_y_ticks=axes_y_ticks, figure_size=figure_size)
             plt.title("Class: '{}'".format(self.classname))
+        else:
+            plt.title("No classification.")
         return viewer
 
     def view_all_detections(self, figure_id=None, new_figure=False, channels=None,
