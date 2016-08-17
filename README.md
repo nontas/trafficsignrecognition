@@ -27,7 +27,7 @@ $ source activate road_signs
 
 
 ## Get Started
-Please see the [**Notebooks**](https://github.com/nontas/trafficsignrecognition/tree/master/trafficsignrecognition) for examples on how to train and use the model. You can run the notebooks by:
+Please see the [**Notebooks**](https://github.com/nontas/trafficsignrecognition/blob/master/notebooks/) for examples on how to train and use the model and, specifically, the [Guide notebook](https://github.com/nontas/trafficsignrecognition/blob/master/notebooks/Guide.ipynb). You can run the notebooks by:
 ```console
 $ source activate road_signs
 (road_signs)$ cd ~/Documents/trafficsignrecognition/notebooks/
