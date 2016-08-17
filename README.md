@@ -9,22 +9,27 @@ Once downloading and installing [conda](http://conda.pydata.org/miniconda.html),
 
 **Step 1:** Create a new conda environment and activate it:
 ```console
-conda create -n road_signs python=3.5
-source activate road_signs
+$ conda create -n road_signs python=3.5
+$ source activate road_signs
 ```
 
 **Step 2:** Install [menpo](http://www.menpo.org/menpo/), [menpofit](http://www.menpo.org/menpofit/) and [menpowidgets](http://www.menpo.org/menpowidgets/) from the menpo channel: 
 ```console
-conda install -c menpo menpofit menpowidgets
+(road_signs)$ conda install -c menpo menpofit menpowidgets
 ```
 
 **Step 3:** Clone and install the `trafficsignrecognition` project
 ```console
-cd ~/Documents
-git clone git@github.com:nontas/trafficsignrecognition.git
-pip install -e trafficsignrecognition/
+(road_signs)$ cd ~/Documents
+(road_signs)$ git clone git@github.com:nontas/trafficsignrecognition.git
+(road_signs)$ pip install -e trafficsignrecognition/
 ```
 
 
 ## Get Started
-Please see the [**Notebooks**](https://github.com/nontas/trafficsignrecognition/tree/master/trafficsignrecognition) for examples on how to train and use the model.
+Please see the [**Notebooks**](https://github.com/nontas/trafficsignrecognition/tree/master/trafficsignrecognition) for examples on how to train and use the model. You can run the notebooks by:
+```console
+$ source activate road_signs
+(road_signs)$ cd ~/Documents/trafficsignrecognition/notebooks/
+(road_signs)$ jupyter notebook
+```
