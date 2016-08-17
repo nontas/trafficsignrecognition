@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from functools import partial
 
@@ -13,6 +14,26 @@ from .normalisation import (normalise_norm_array, image_normalisation,
                             create_cosine_mask)
 from .feature import fast_dsift_hsi
 from .result import DetectionResult, print_str, ClassificationResult
+
+
+def data_dir_path():
+    r"""
+    The path to the data folder.
+
+    :type: `pathlib.Path`
+    """
+    from pathlib import Path  # to avoid cluttering the menpo.base namespace
+    return Path(os.path.abspath(__file__)).parent / 'data'
+
+
+def load_pretrained_model():
+    r"""
+    Method that loads a pretrained classification model.
+
+    :type: `Classification`
+    """
+    import menpo.io as mio
+    return mio.import_pickle(data_dir_path() / 'pretrained_model.pkl')
 
 
 def get_bounding_box(center, shape):
