@@ -26,10 +26,20 @@ $ source activate road_signs
 ```
 
 
-## Get Started
+## Notebook
 Please see the [**Notebooks**](https://github.com/nontas/trafficsignrecognition/blob/master/notebooks/) for examples on how to train and use the model and, specifically, the [Guide notebook](https://github.com/nontas/trafficsignrecognition/blob/master/notebooks/Guide.ipynb). You can run the notebooks by:
 ```console
 $ source activate road_signs
 (road_signs)$ cd ~/Documents/trafficsignrecognition/notebooks/
 (road_signs)$ jupyter notebook
+```
+
+
+## Command line
+Another option is to run the pre-trained classifier from the command line as:
+```console
+$ source activate road_signs
+(road_signs)$ cd ~/Documents/trafficsignrecognition/trafficsignrecognition/
+(road_signs)$ chmod +x trafficsignrecognition
+(road_signs)$ ./trafficsignrecognition /path/to/image.jpg
 ```
